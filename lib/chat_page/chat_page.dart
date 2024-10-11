@@ -1,38 +1,44 @@
-import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:lottie/lottie.dart';
+import 'dart:io';
 
 class ChatAI extends StatefulWidget {
-  const ChatAI({super.key});
+  final Function(bool isDarkMode) onThemeChanged;
+
+  const ChatAI({super.key, required this.onThemeChanged});
 
   @override
   State<ChatAI> createState() => _ChatAIState();
 }
 
 class _ChatAIState extends State<ChatAI> {
-  final Gemini gemini = Gemini.instance;
   List<ChatMessage> messages = [];
   bool isLoading = false;
+  bool isDarkMode = true; // Toggle between dark and light mode
+  late Future<void> _initializationFuture; // Future for initialization
+  late Gemini gemini;
+  final TextEditingController inputController = TextEditingController();
 
   ChatUser currentUser = ChatUser(id: "0", firstName: "user");
   ChatUser geminiUser = ChatUser(
     id: "1",
     firstName: "Learners AI",
-    profileImage: "https://raw.githubusercontent.com/Onnesok/Learners/main/assets/icon/app_icon1.png",
+    profileImage: "https://images-platform.99static.com//2---YZxVUu3ZgdOGT-olFMiXXCg=/0x0:1961x1961/fit-in/500x500/99designs-contests-attachments/132/132928/attachment_132928696",
   );
+
+  String? selectedImagePath;
 
   @override
   void initState() {
     super.initState();
-    _initializeGemini();
+    _initializationFuture = _initializeGemini();
   }
 
   Future<void> _initializeGemini() async {
@@ -40,121 +46,257 @@ class _ChatAIState extends State<ChatAI> {
     String? apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
       Fluttertoast.showToast(msg: 'API Key is not set.');
-      return;
+      throw Exception("API Key is not set.");
     }
-    Gemini.init(apiKey: apiKey);
+    gemini = await Gemini.init(apiKey: apiKey); // Initialize gemini
+  }
+
+  @override
+  void dispose() {
+    inputController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Dark background color
-      appBar: AppBar(
-        title: Text("Your AI Friend", style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF1E1E1E),
-        elevation: 0,
-        scrolledUnderElevation: 0.0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Icon(Icons.bubble_chart_outlined, color: Colors.blueGrey),
-        ),
-      ),
-      body: Stack(
-        children: [
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            child: _buildUi(),
-          ),
-          if (isLoading)
-            Center(
-              child: SizedBox(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.width,
-                child: Lottie.asset(
-                  'assets/animation/cube_loader.json',
-                  repeat: true,
-                ),
-              ),
+    return FutureBuilder<void>(
+      future: _initializationFuture, // Use FutureBuilder to manage the future
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        } else if (snapshot.hasError) {
+          return Center(
+            child: Text('Error: ${snapshot.error}'),
+          );
+        }
+
+        // When the initialization is complete, build the chat UI
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            title: Text("Your AI Friend", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
+            centerTitle: true,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            elevation: 0,
+            scrolledUnderElevation: 0.0,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Icon(Icons.bubble_chart_outlined, color: Theme.of(context).iconTheme.color),
             ),
-        ],
-      ),
+            actions: [
+              IconButton(
+                icon: Icon(isDarkMode ? Icons.wb_sunny : Icons.nights_stay, color: Colors.red),
+                onPressed: () {
+                  setState(() {
+                    isDarkMode = !isDarkMode;
+                  });
+                  widget.onThemeChanged(isDarkMode);
+                },
+              ),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                child: _buildUi(),
+              ),
+              if (isLoading)
+                Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.width,
+                    child: Lottie.asset(
+                      'assets/animation/cube_loader.json',
+                      repeat: true,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildUi() {
-    return DashChat(
-      currentUser: currentUser,
-      onSend: _sendMessage,
-      messages: messages,
-      messageOptions: MessageOptions(
-        messageDecorationBuilder: (message, previousMessage, nextMessage) {
-          bool isUser = message.user.id == currentUser.id;
-          return _neomorphicDecoration(isUser: isUser);
-        },
-        textColor: Colors.white,
-      ),
-      inputOptions: InputOptions(
-        inputTextStyle: TextStyle(color: Colors.white),
-        inputDecoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFF1E1E1E),
-          hintText: "Type your message here...",
-          hintStyle: TextStyle(color: Colors.grey[400]),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(20),
-            borderSide: BorderSide.none,
+    return Column(
+      children: [
+        Expanded(
+          child: DashChat(
+            currentUser: currentUser,
+            onSend: _sendMessage,
+            messages: messages,
+            messageOptions: MessageOptions(
+              messageDecorationBuilder: (message, previousMessage, nextMessage) {
+                bool isUser = message.user.id == currentUser.id;
+                return _neomorphicDecoration(context, isUser: isUser);
+              },
+              textColor: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+              // Use the builder to render HTML formatted text  :)
+              messageTextBuilder: (message, previousMessage, nextMessage) {
+                return Container(
+                  padding: const EdgeInsets.all(10),
+                  child: Html(data: message.text),
+                );
+              },
+            ),
+            inputOptions: InputOptions(
+              leading: [
+                IconButton(
+                  onPressed: _sendMediaMessage,
+                  icon: Icon(Icons.image, color: Theme.of(context).primaryColor),
+                ),
+              ],
+              textController: inputController,
+              inputTextStyle: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white),
+              inputDecoration: InputDecoration(
+                filled: true,
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                hintText: "Type your message here...",
+                hintStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+              ),
+              alwaysShowSend: true,
+            ),
           ),
         ),
-        trailing: [
-          IconButton(
-            onPressed: _sendMediaMessage,
-            icon: const Icon(Icons.image, color: Colors.blueAccent),
+        if (selectedImagePath != null) _buildImagePreview(),
+      ],
+    );
+  }
+
+
+  Widget _buildImagePreview() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 8,
           ),
         ],
-        alwaysShowSend: true,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // Display the image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.file(
+              File(selectedImagePath!),
+              width: 80,
+              height: 80,
+              fit: BoxFit.cover,
+            ),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "Image selected",
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.close, color: Colors.redAccent),
+            onPressed: () {
+              setState(() {
+                selectedImagePath = null; // Remove selected image
+              });
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // Neomorphic decoration builder
-  BoxDecoration _neomorphicDecoration({bool isUser = false}) {
+
+
+  BoxDecoration _neomorphicDecoration(BuildContext context, {bool isUser = false}) {
+    final theme = Theme.of(context);
+
+    // Define background color based on the user's message type and theme
+    Color backgroundColor = isUser
+        ? (theme.brightness == Brightness.dark ? const Color(0xFF2B2B2B) : const Color(0xFFF0F0F0)) // User's message
+        : (theme.brightness == Brightness.dark ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF)); // AI's message
+
     return BoxDecoration(
-      color: const Color(0xFF1E1E1E), // Dark color for neomorphic style
-      borderRadius: BorderRadius.circular(20),
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(15), // Rounded corners
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.5), // Dark shadow for depth
-          offset: const Offset(10, 10),
-          blurRadius: 20,
+          color: theme.brightness == Brightness.dark ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.5),
+          offset: const Offset(4, 4), // Light shadow for depth
+          blurRadius: 35, // Soft blur for a more gentle effect
+          spreadRadius: 1, // Light spread for a lifted effect
         ),
         BoxShadow(
-          color: Colors.white.withOpacity(0.1), // Light shadow for neomorphic effect
-          offset: const Offset(-10, -10),
-          blurRadius: 20,
+          color: theme.brightness == Brightness.dark ? Colors.grey.withOpacity(0.1) : Colors.white.withOpacity(0.7),
+          offset: const Offset(-4, -4), // Light shadow in the opposite direction
+          blurRadius: 15, // Consistent blur for softness
+          spreadRadius: 1, // Light spread
         ),
       ],
     );
   }
 
+
   void _sendMessage(ChatMessage chatMessage) {
     setState(() {
       isLoading = true;
+
+      // If there's an image selected, add it to the message as media
+      if (selectedImagePath != null) {
+        chatMessage.medias = [
+          ChatMedia(
+            url: selectedImagePath!,
+            fileName: File(selectedImagePath!).path.split('/').last,
+            type: MediaType.image,
+          )
+        ];
+      }
+
       messages = [chatMessage, ...messages];
+      inputController.clear();
+      selectedImagePath = null;
     });
+
     try {
       String question = chatMessage.text;
       List<Uint8List> images = [];
+
+      // If the message contains media, read the image file as bytes
       if (chatMessage.medias?.isNotEmpty ?? false) {
         images = [
           File(chatMessage.medias!.first.url).readAsBytesSync(),
         ];
       }
+
       gemini.streamGenerateContent(question, images: images).listen((event) {
         String response = event.content?.parts?.fold("", (previous, current) => "$previous ${current.text}") ?? "";
+
+        // Format the response for better readability
+        String formattedResponse = _formatResponse(response);
+
         if (messages.isNotEmpty && messages.first.user == geminiUser) {
           ChatMessage? lastMessage = messages.removeAt(0);
-          lastMessage.text += response;
+          lastMessage.text += formattedResponse; // Append formatted response
           setState(() {
             messages = [lastMessage, ...messages];
             isLoading = false;
@@ -163,7 +305,7 @@ class _ChatAIState extends State<ChatAI> {
           ChatMessage message = ChatMessage(
             user: geminiUser,
             createdAt: DateTime.now(),
-            text: response,
+            text: formattedResponse, // Set formatted response as message text
           );
           setState(() {
             messages = [message, ...messages];
@@ -184,17 +326,47 @@ class _ChatAIState extends State<ChatAI> {
     }
   }
 
+
+// Helper function to format responses
+  String _formatResponse(String response) {
+    // First, ensure the response is trimmed of any leading/trailing whitespace
+    response = response.trim();
+
+    // Replace Markdown-like syntax with HTML or custom formatting
+    response = response
+        .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'<b>$1</b>') // Bold
+        .replaceAll(RegExp(r'_(.*?)_'), r'<i>$1</i>') // Italics
+        .replaceAll(RegExp(r'`(.*?)`'), r'<code>$1</code>') // Inline code
+        .replaceAll(RegExp(r'```(.*?)```', dotAll: true), r'<pre>$1</pre>') // Code block
+        .replaceAll(RegExp(r'\n'), r'<br>'); // Convert new lines to <br>
+
+    // Replace common mathematical symbols
+    response = response
+        .replaceAll(RegExp(r'(\d+)\^2'), r'$1&sup2;') // Handle numbers squared
+        .replaceAll(RegExp(r'\/'), r'&divide;') // Division
+        .replaceAll(RegExp(r'\*'), r'&times;'); // Multiplication
+
+    // Remove any potential artifacts that may occur during replacement
+    response = response.replaceAll(RegExp(r'\$[0-9]+'), ''); // Remove dollar sign artifacts
+
+    return response;
+  }
+
+
+
+
+
+
+
+
+
   void _sendMediaMessage() async {
     ImagePicker picker = ImagePicker();
     XFile? file = await picker.pickImage(source: ImageSource.gallery);
     if (file != null) {
-      ChatMessage chatMessage = ChatMessage(
-        user: currentUser,
-        createdAt: DateTime.now(),
-        text: "Describe this image?",
-        medias: [ChatMedia(url: file.path, fileName: "", type: MediaType.image)],
-      );
-      _sendMessage(chatMessage);
+      setState(() {
+        selectedImagePath = file.path;
+      });
     }
   }
 }
