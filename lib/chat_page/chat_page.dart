@@ -22,14 +22,14 @@ class _ChatAIState extends State<ChatAI> {
   List<ChatMessage> messages = [];
   bool isLoading = false;
   bool isDarkMode = true; // Toggle between dark and light mode
-  late Future<void> _initializationFuture; // Future for initialization
+  late Future<void> _initializationFuture;
   late Gemini gemini;
   final TextEditingController inputController = TextEditingController();
 
   ChatUser currentUser = ChatUser(id: "0", firstName: "user");
   ChatUser geminiUser = ChatUser(
     id: "1",
-    firstName: "Learners AI",
+    firstName: "AI",
     profileImage: "https://images-platform.99static.com//2---YZxVUu3ZgdOGT-olFMiXXCg=/0x0:1961x1961/fit-in/500x500/99designs-contests-attachments/132/132928/attachment_132928696",
   );
 
@@ -75,28 +75,7 @@ class _ChatAIState extends State<ChatAI> {
         // When the initialization is complete, build the chat UI
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          appBar: AppBar(
-            title: Text("Your AI Friend", style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color)),
-            centerTitle: true,
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-            elevation: 0,
-            scrolledUnderElevation: 0.0,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Icon(Icons.bubble_chart_outlined, color: Theme.of(context).iconTheme.color),
-            ),
-            actions: [
-              IconButton(
-                icon: Icon(isDarkMode ? Icons.wb_sunny : Icons.nights_stay, color: Colors.red),
-                onPressed: () {
-                  setState(() {
-                    isDarkMode = !isDarkMode;
-                  });
-                  widget.onThemeChanged(isDarkMode);
-                },
-              ),
-            ],
-          ),
+          appBar: _buildAppBar(),
           body: Stack(
             children: [
               Container(
@@ -121,7 +100,98 @@ class _ChatAIState extends State<ChatAI> {
     );
   }
 
+
+  PreferredSizeWidget _buildAppBar() {
+    final theme = Theme.of(context);
+
+    var backgroundColor = Theme.of(context).scaffoldBackgroundColor;
+    Color textColor = isDarkMode ? Colors.white : Colors.black;
+    Color iconColor = isDarkMode ? Colors.white : Colors.black;
+
+    // Neumorphic shadow colors
+    Color shadowColor = isDarkMode ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.5);
+    Color highlightColor = isDarkMode ? Colors.grey.withOpacity(0.1) : Colors.white;
+
+    return PreferredSize(
+      preferredSize: Size.fromHeight(60),
+      child: AppBar(
+        title: Text(
+          "Your AI Friend",
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, letterSpacing: 2),
+        ),
+        scrolledUnderElevation: 0.0,
+        centerTitle: true,
+        backgroundColor: Colors.transparent, // Make background transparent to show neumorphism
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: shadowColor,
+                  offset: Offset(4, 4),
+                  blurRadius: 15,
+                  spreadRadius: 1,
+                ),
+                BoxShadow(
+                  color: highlightColor,
+                  offset: Offset(-4, -4),
+                  blurRadius: 15,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: Icon(Icons.bubble_chart_outlined, color: iconColor),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: [
+                  BoxShadow(
+                    color: shadowColor,
+                    offset: Offset(4, 4),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                  BoxShadow(
+                    color: highlightColor,
+                    offset: Offset(-4, -4),
+                    blurRadius: 15,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: Icon(isDarkMode ? Icons.wb_sunny : Icons.nights_stay, color: iconColor),
+                onPressed: () {
+                  setState(() {
+                    isDarkMode = !isDarkMode;
+                  });
+                  widget.onThemeChanged(isDarkMode);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
   Widget _buildUi() {
+
+    Color iconColor = isDarkMode ? Colors.white : Colors.black;
+
     return Column(
       children: [
         Expanded(
@@ -147,7 +217,7 @@ class _ChatAIState extends State<ChatAI> {
               leading: [
                 IconButton(
                   onPressed: _sendMediaMessage,
-                  icon: Icon(Icons.image, color: Theme.of(context).primaryColor),
+                  icon: Icon(Icons.image, color: iconColor),
                 ),
               ],
               textController: inputController,
@@ -166,6 +236,19 @@ class _ChatAIState extends State<ChatAI> {
                 contentPadding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
               ),
               alwaysShowSend: true,
+              sendButtonBuilder: (onPressed) {
+                return Container(
+                  // decoration: BoxDecoration(
+                  //   color: isDarkMode ? Colors.black : Colors.white,
+                  //   borderRadius: BorderRadius.circular(15),
+                  // ),
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: isDarkMode ? Colors.white : Colors.black),
+                    onPressed: onPressed,
+                  ),
+                );
+              },
+
             ),
           ),
         ),
@@ -180,7 +263,7 @@ class _ChatAIState extends State<ChatAI> {
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
+        color: Theme.of(context).scaffoldBackgroundColor,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -238,16 +321,16 @@ class _ChatAIState extends State<ChatAI> {
 
     return BoxDecoration(
       color: backgroundColor,
-      borderRadius: BorderRadius.circular(15), // Rounded corners
+      borderRadius: BorderRadius.circular(20), // Rounded corners
       boxShadow: [
         BoxShadow(
           color: theme.brightness == Brightness.dark ? Colors.black.withOpacity(0.5) : Colors.grey.withOpacity(0.5),
           offset: const Offset(4, 4), // Light shadow for depth
-          blurRadius: 35, // Soft blur for a more gentle effect
+          blurRadius: 15, // Soft blur for a more gentle effect
           spreadRadius: 1, // Light spread for a lifted effect
         ),
         BoxShadow(
-          color: theme.brightness == Brightness.dark ? Colors.grey.withOpacity(0.1) : Colors.white.withOpacity(0.7),
+          color: theme.brightness == Brightness.dark ? Colors.grey.withOpacity(0.1) : Colors.white,
           offset: const Offset(-4, -4), // Light shadow in the opposite direction
           blurRadius: 15, // Consistent blur for softness
           spreadRadius: 1, // Light spread
@@ -351,12 +434,6 @@ class _ChatAIState extends State<ChatAI> {
 
     return response;
   }
-
-
-
-
-
-
 
 
 
