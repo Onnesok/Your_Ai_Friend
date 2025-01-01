@@ -27,17 +27,23 @@ dependencies:
   image_picker: ^1.1.2
   flutter_html: ^3.0.0-beta.2
   flutter_neumorphic: ^3.2.0
+  flutter_launcher_icons: ^0.14.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
   flutter_lints: ^4.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  adaptive_icon_background: '#000000'
+  image_path_android: 'assets/Icon/icon.png'
+  image_path_ios: 'assets/Icon/icon.png'
+  adaptive_icon_foreground: 'assets/Icon/icon.png'
+  remove_alpha_ios: true
+  min_sdk_android: 21
+
 
 flutter:
   uses-material-design: true
