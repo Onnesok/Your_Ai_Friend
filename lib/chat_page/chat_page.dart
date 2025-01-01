@@ -30,7 +30,7 @@ class _ChatAIState extends State<ChatAI> {
   ChatUser geminiUser = ChatUser(
     id: "1",
     firstName: "AI",
-    profileImage: "https://images-platform.99static.com//2---YZxVUu3ZgdOGT-olFMiXXCg=/0x0:1961x1961/fit-in/500x500/99designs-contests-attachments/132/132928/attachment_132928696",
+    profileImage: "https://as2.ftcdn.net/v2/jpg/05/75/66/73/1000_F_575667347_HmvB32PIz6KTTCV8FRI9w3PaGwFkzG8S.jpg",
   );
 
   String? selectedImagePath;
