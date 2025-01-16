@@ -88,7 +88,7 @@ class _ChatAIState extends State<ChatAI> {
                     width: MediaQuery.of(context).size.width,
                     height: MediaQuery.of(context).size.width,
                     child: Lottie.asset(
-                      'assets/animation/cube_loader.json',
+                      'assets/animation/black_cube.json',
                       repeat: true,
                     ),
                   ),
@@ -376,10 +376,11 @@ class _ChatAIState extends State<ChatAI> {
 
         // Format the response for better readability
         String formattedResponse = _formatResponse(response);
+        //formatted response is not used anymore
 
         if (messages.isNotEmpty && messages.first.user == geminiUser) {
           ChatMessage? lastMessage = messages.removeAt(0);
-          lastMessage.text += formattedResponse; // Append formatted response
+          lastMessage.text += response; //formattedResponse; // Append formatted response
           setState(() {
             messages = [lastMessage, ...messages];
             isLoading = false;
@@ -388,7 +389,7 @@ class _ChatAIState extends State<ChatAI> {
           ChatMessage message = ChatMessage(
             user: geminiUser,
             createdAt: DateTime.now(),
-            text: formattedResponse, // Set formatted response as message text
+            text: response, //formattedResponse, // Set formatted response as message text
           );
           setState(() {
             messages = [message, ...messages];
